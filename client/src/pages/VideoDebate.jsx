@@ -10,6 +10,9 @@ import {
   getNotes,
 } from "../api/debateApi";
 
+import { Mic, MicOff, Video, VideoOff, FileText, PhoneOff } from "lucide-react";
+import { showError } from "../utils/toast";
+
 function VideoDebate() {
   const peerRef = useRef(null);
   const localVideoRef = useRef(null);
@@ -246,7 +249,7 @@ function VideoDebate() {
       const response = await getDebate(roomId);
 
       if (response.data.status === "ended") {
-        alert("This debate has already ended");
+        showError("This debate has already ended");
 
         navigate("/");
 
@@ -428,17 +431,17 @@ function VideoDebate() {
 
   const handleAddNote = async () => {
     if (!noteTitle.trim()) {
-      alert("Please enter note title");
+      showError("Please enter note title");
       return;
     }
 
     if (!noteContent.trim()) {
-      alert("Please enter note content");
+      showError("Please enter note content");
       return;
     }
 
     if (debateEnded) {
-      alert("Debate has already ended");
+      showError("Debate has already ended");
       return;
     }
     try {
@@ -475,7 +478,7 @@ function VideoDebate() {
         <div className="w-full max-w-2xl rounded-3xl border border-slate-800 bg-slate-900 p-8 md:p-10 shadow-2xl relative overflow-hidden">
           {/* Subtle top gradient bar */}
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 to-blue-500 opacity-50"></div>
-          
+
           {/* Header */}
           <div className="text-center mb-10">
             <div className="inline-flex items-center justify-center h-24 w-24 rounded-full bg-cyan-500/10 mb-6 border border-cyan-500/20 shadow-[0_0_30px_rgba(34,211,238,0.15)] animate-[scaleIn_0.5s_ease-out]">
@@ -519,7 +522,10 @@ function VideoDebate() {
                   Duration
                 </p>
                 <p className="text-4xl font-black text-cyan-400">
-                  {roomData?.duration / 60} <span className="text-lg font-medium text-slate-500">min</span>
+                  {roomData?.duration / 60}{" "}
+                  <span className="text-lg font-medium text-slate-500">
+                    min
+                  </span>
                 </p>
               </div>
             </div>
@@ -657,28 +663,58 @@ function VideoDebate() {
             onClick={toggleMute}
             className="rounded-lg bg-yellow-500 px-5 py-2.5 font-medium text-black transition hover:scale-105"
           >
-            {isMuted ? "Unmute" : "Mute"}
+            <span className="flex items-center gap-2">
+              {isMuted ? (
+                <>
+                  <MicOff size={18} />
+                  Unmute
+                </>
+              ) : (
+                <>
+                  <Mic size={18} />
+                  Mute
+                </>
+              )}
+            </span>
           </button>
 
           <button
             onClick={toggleCamera}
             className="rounded-lg bg-slate-800 px-5 py-2.5 font-medium transition hover:bg-slate-700"
           >
-            {cameraOff ? "Camera On" : "Camera Off"}
+            <span className="flex items-center gap-2">
+              {cameraOff ? (
+                <>
+                  <VideoOff size={18} />
+                  Camera On
+                </>
+              ) : (
+                <>
+                  <Video size={18} />
+                  Camera Off
+                </>
+              )}
+            </span>
           </button>
 
           <button
             onClick={() => setNotesOpen(true)}
             className="rounded-lg bg-cyan-500 px-5 py-2.5 font-medium transition hover:scale-105"
           >
-            Notes
+            <span className="flex items-center gap-2">
+              <FileText size={18} />
+              Notes
+            </span>
           </button>
 
           <button
             onClick={leaveCall}
             className="rounded-lg bg-red-500 px-5 py-2.5 font-medium transition hover:scale-105"
           >
-            Leave Call
+            <span className="flex items-center gap-2">
+              <PhoneOff size={18} />
+              Leave Call
+            </span>
           </button>
         </div>
 
