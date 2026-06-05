@@ -135,7 +135,7 @@ debatespace-ai
 ### Clone Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/debatespace-ai.git
+git clone https://github.com/SubhashSonu/debatespace-ai.git
 cd debatespace-ai
 ```
 
