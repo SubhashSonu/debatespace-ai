@@ -24,7 +24,7 @@ function CreateDebate() {
         duration,
       });
 
-      console.log(response.data);
+    
 
       setRoomId(response.data.roomId);
       showSuccess("Debate room created successfully");

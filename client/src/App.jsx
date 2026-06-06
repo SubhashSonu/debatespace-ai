@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
-import { connectSocket, socket } from "./api/socket";
+import { connectSocket, disconnectSocket, socket } from "./api/socket";
 import Navbar from "./components/Navbar";
 import AiDebate from "./pages/AiDebate";
 import Home from "./pages/Home";
@@ -17,30 +17,9 @@ import { Toaster } from "react-hot-toast";
 
 function App() {
   useEffect(() => {
-    const handleConnect = () => {
-      console.info("Socket connected:", socket.id);
-      socket.emit("client:ping", { source: "react-client" }, (response) => {
-        console.info("Socket ping response:", response);
-      });
-    };
-
-    const handleServerConnected = (payload) => {
-      console.info("Socket server handshake:", payload);
-    };
-
-    const handleDisconnect = (reason) => {
-      console.info("Socket disconnected:", reason);
-    };
-
-    socket.on("connect", handleConnect);
-    socket.on("server:connected", handleServerConnected);
-    socket.on("disconnect", handleDisconnect);
     connectSocket();
-
     return () => {
-      socket.off("connect", handleConnect);
-      socket.off("server:connected", handleServerConnected);
-      socket.off("disconnect", handleDisconnect);
+      disconnectSocket();
     };
   }, []);
 

@@ -164,8 +164,6 @@ const callGeminiDebateOpponent = async ({
 
   const data = await response.json();
 
-  console.log("Gemini finish reason:", data.candidates?.[0]?.finishReason);
-
   if (!response.ok) {
     const error = new Error(data.error?.message || "Gemini API request failed");
     error.status = response.status;

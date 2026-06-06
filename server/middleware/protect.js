@@ -30,7 +30,6 @@ const protect = async (
         process.env.JWT_SECRET
       );
 
-      console.log("Decoded:", decoded);
 
    const user =
   await User.findById(

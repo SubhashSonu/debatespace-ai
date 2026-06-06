@@ -22,7 +22,6 @@ const initializeSocket = (httpServer) => {
   };
 
   io.on("connection", (socket) => {
-    console.log(`Socket connected: ${socket.id}`);
 
     socket.on(
       "video:join",
@@ -40,10 +39,6 @@ const initializeSocket = (httpServer) => {
         }
 
         socket.join(roomName);
-
-        console.log(
-          `${username} with socketId ${socket.id} joined ${roomName}`,
-        );
 
         const exists = videoRooms[roomName].users.some(
           (u) => u.socketId === socket.id,
@@ -114,14 +109,12 @@ const initializeSocket = (httpServer) => {
             (u) => u.socketId !== socket.id,
           );
 
-          console.log("AFTER REMOVE:", roomName, videoRooms[roomName].users);
 
           const room = videoRooms[roomName];
 
           if (room.users.length === 0) {
             delete videoRooms[roomName];
 
-            console.log(`Deleted Empty Room ${roomName}`);
           } else {
             if (room.users.length < 2) {
               room.debateStarted = false;
@@ -150,9 +143,6 @@ const initializeSocket = (httpServer) => {
         }
       }
 
-      console.log("DISCONNECT:", socket.id);
-
-      console.log(`Socket disconnected: ${socket.id} (${reason})`);
     });
   });
 

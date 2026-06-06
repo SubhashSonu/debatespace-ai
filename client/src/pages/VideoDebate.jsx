@@ -38,43 +38,42 @@ function VideoDebate() {
   const [noteTitle, setNoteTitle] = useState("");
 
   const [noteContent, setNoteContent] = useState("");
+  const [endReason, setEndReason] = useState("");
+  const [actualDuration, setActualDuration] = useState(0);
+  const startTimeRef = useRef(null);
 
   const localUsername = user?.username || "You";
   const remoteUser = roomData?.users?.find((u) => u.username !== localUsername);
 
   const createPeer = () => {
-  peerRef.current = new RTCPeerConnection({
-    iceServers: [
-      {
-        urls: "stun:stun.l.google.com:19302",
-      },
+    peerRef.current = new RTCPeerConnection({
+      iceServers: [
+        {
+          urls: "stun:stun.l.google.com:19302",
+        },
 
-      {
-        urls: "turn:openrelay.metered.ca:80",
-        username: "openrelayproject",
-        credential: "openrelayproject",
-      },
+        {
+          urls: "turn:openrelay.metered.ca:80",
+          username: "openrelayproject",
+          credential: "openrelayproject",
+        },
 
-      {
-        urls: "turn:openrelay.metered.ca:443",
-        username: "openrelayproject",
-        credential: "openrelayproject",
-      },
+        {
+          urls: "turn:openrelay.metered.ca:443",
+          username: "openrelayproject",
+          credential: "openrelayproject",
+        },
 
-      {
-        urls: "turn:openrelay.metered.ca:443?transport=tcp",
-        username: "openrelayproject",
-        credential: "openrelayproject",
-      },
-    ],
-  });
-
-    console.log("Peer Created:", peerRef.current);
+        {
+          urls: "turn:openrelay.metered.ca:443?transport=tcp",
+          username: "openrelayproject",
+          credential: "openrelayproject",
+        },
+      ],
+    });
 
     peerRef.current.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log("ICE Candidate Generated:", event.candidate);
-
         socket.emit("webrtc:ice-candidate", {
           roomId,
           candidate: event.candidate,
@@ -82,15 +81,7 @@ function VideoDebate() {
       }
     };
 
-    peerRef.current.onconnectionstatechange = () => {
-      console.log("Connection State:", peerRef.current.connectionState);
-    };
-
     peerRef.current.ontrack = (event) => {
-      console.log("Remote Track Received");
-
-      console.log("Remote Stream:", event.streams[0]);
-
       setIsRemoteConnected(true);
 
       if (remoteVideoRef.current) {
@@ -106,13 +97,9 @@ function VideoDebate() {
         audio: true,
       });
 
-      console.log("Stream received:", stream);
-
       localStreamRef.current = stream;
 
       stream.getTracks().forEach((track) => {
-        console.log("Adding Track:", track.kind);
-
         peerRef.current.addTrack(track, stream);
       });
       if (localVideoRef.current) {
@@ -127,18 +114,12 @@ function VideoDebate() {
     try {
       const offer = await peerRef.current.createOffer();
 
-      console.log("Offer Created:", offer);
-
       await peerRef.current.setLocalDescription(offer);
-
-      console.log("Local Description Set:", peerRef.current.localDescription);
 
       socket.emit("webrtc:offer", {
         roomId,
         offer,
       });
-
-      console.log("Offer Sent");
     } catch (error) {
       console.error(error);
     }
@@ -150,22 +131,14 @@ function VideoDebate() {
         new RTCSessionDescription(offer),
       );
 
-      console.log("Remote Description Set");
-
       const answer = await peerRef.current.createAnswer();
 
-      console.log("Answer Created:", answer);
-
       await peerRef.current.setLocalDescription(answer);
-
-      console.log("Local Answer Set");
 
       socket.emit("webrtc:answer", {
         roomId,
         answer,
       });
-
-      console.log("Answer Sent");
     } catch (error) {
       console.error(error);
     }
@@ -176,8 +149,6 @@ function VideoDebate() {
       await peerRef.current.setRemoteDescription(
         new RTCSessionDescription(answer),
       );
-
-      console.log("Remote Answer Set");
     } catch (error) {
       console.error(error);
     }
@@ -186,8 +157,6 @@ function VideoDebate() {
   const handleIceCandidate = async (candidate) => {
     try {
       await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-
-      console.log("ICE Candidate Added");
     } catch (error) {
       console.error(error);
     }
@@ -201,8 +170,6 @@ function VideoDebate() {
     audioTrack.enabled = !audioTrack.enabled;
 
     setIsMuted(!audioTrack.enabled);
-
-    console.log("Microphone:", audioTrack.enabled ? "ON" : "OFF");
   };
 
   const toggleCamera = () => {
@@ -213,15 +180,11 @@ function VideoDebate() {
     videoTrack.enabled = !videoTrack.enabled;
 
     setCameraOff(!videoTrack.enabled);
-
-    console.log("Camera:", videoTrack.enabled ? "ON" : "OFF");
   };
 
   const leaveCall = async () => {
     try {
       await endDebate(roomId, "user_left");
-
-      console.log("Debate ended because user left");
 
       socket.emit("debate:end", {
         roomId,
@@ -230,7 +193,6 @@ function VideoDebate() {
     } catch (error) {
       console.error(error);
     }
-    console.log("Leaving Call");
 
     localStreamRef.current?.getTracks().forEach((track) => {
       track.stop();
@@ -275,8 +237,6 @@ function VideoDebate() {
       }
 
       setDebate(response.data);
-
-      console.log("DEBATE:", response.data);
     } catch (error) {
       console.error(error);
     }
@@ -288,8 +248,6 @@ function VideoDebate() {
   }, [roomId]);
 
   useEffect(() => {
-    console.log("DEBATE STATE", debate);
-
     if (!debate?.topic) {
       return;
     }
@@ -299,7 +257,6 @@ function VideoDebate() {
 
       await startLocalVideo();
 
-      console.log("JOIN EMITTED");
       socket.emit("video:join", {
         roomId,
         userId: user?.id,
@@ -307,8 +264,6 @@ function VideoDebate() {
         topic: debate?.topic,
         duration: debate?.duration,
       });
-
-      console.log("Joined Video Room:", roomId);
     };
 
     init();
@@ -323,20 +278,14 @@ function VideoDebate() {
     };
 
     const handleOffer = async ({ offer }) => {
-      console.log("Offer Received:", offer);
-
       await createAnswer(offer);
     };
 
     const answerHandler = async ({ answer }) => {
-      console.log("Answer Received:", answer);
-
       await handleAnswer(answer);
     };
 
     const iceHandler = async ({ candidate }) => {
-      console.log("ICE Candidate Received:", candidate);
-
       await handleIceCandidate(candidate);
     };
 
@@ -345,21 +294,26 @@ function VideoDebate() {
     };
 
     const roomUpdateHandler = (room) => {
-      console.log("ROOM UPDATE", room);
-
-      console.log("START TIME:", room.startTime);
-
-      console.log("DURATION:", room.duration);
-
       setRoomData(room);
+       if (room.startTime) {
+    startTimeRef.current = room.startTime;
+  }
     };
 
     const debateEndedHandler = (data) => {
-      console.log("DEBATE ENDED", data);
-
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
 
       peerRef.current?.close();
+
+     if (startTimeRef.current) {
+  const elapsed = Math.floor(
+    (Date.now() - startTimeRef.current) / 1000
+  );
+
+  setActualDuration(elapsed);
+}
+
+      setEndReason(data.reason);
 
       setDebateEnded(true);
     };
@@ -416,6 +370,9 @@ function VideoDebate() {
       const remaining = Math.max(roomData.duration - elapsed, 0);
 
       if (remaining <= 0) {
+        const elapsed = Math.floor((Date.now() - roomData.startTime) / 1000);
+
+        setActualDuration(elapsed);
         handleDebateEnd("timer");
 
         setTimeLeft(0);
@@ -425,6 +382,8 @@ function VideoDebate() {
         });
 
         peerRef.current?.close();
+
+        setEndReason("timer");
 
         setDebateEnded(true);
 
@@ -446,6 +405,14 @@ function VideoDebate() {
   const formattedTime = `${minutes.toString().padStart(2, "0")}:${seconds
     .toString()
     .padStart(2, "0")}`;
+
+  const durationMinutes = Math.floor(actualDuration / 60);
+
+  const durationSeconds = actualDuration % 60;
+
+  const formattedDuration = `${durationMinutes}m ${durationSeconds
+    .toString()
+    .padStart(2, "0")}s`;
 
   const handleAddNote = async () => {
     if (!noteTitle.trim()) {
@@ -488,8 +455,6 @@ function VideoDebate() {
     }
   };
 
-  console.log("Debate Ended:", debateEnded);
-  console.log("NOTES:", notes);
   if (debateEnded) {
     return (
       <main className="min-h-screen bg-[#020b2d] font-sans text-slate-100 flex items-center justify-center px-4 py-12 selection:bg-cyan-500/30">
@@ -507,7 +472,10 @@ function VideoDebate() {
               Debate Finished
             </h1>
             <p className="text-slate-400 text-lg">
-              The debate timer has ended.
+              {endReason === "timer" &&
+                "The debate duration has been completed."}
+
+              {endReason === "user_left" && "A participant left the debate."}
             </p>
           </div>
 
@@ -537,13 +505,11 @@ function VideoDebate() {
               {/* Duration */}
               <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/50 p-6 text-center transition hover:border-slate-700">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                  Duration
+                  Debate Time
                 </p>
+
                 <p className="text-4xl font-black text-cyan-400">
-                  {roomData?.duration / 60}{" "}
-                  <span className="text-lg font-medium text-slate-500">
-                    min
-                  </span>
+                  {formattedDuration}
                 </p>
               </div>
             </div>
