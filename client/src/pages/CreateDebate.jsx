@@ -24,8 +24,6 @@ function CreateDebate() {
         duration,
       });
 
-    
-
       setRoomId(response.data.roomId);
       showSuccess("Debate room created successfully");
     } catch (error) {

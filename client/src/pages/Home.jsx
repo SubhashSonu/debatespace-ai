@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
 import { getDebateHistory } from "../api/debateApi";
 import { useEffect, useState } from "react";
+import PageLoader from "../components/PageLoader";
 
 function Home() {
   const [latestDebate, setLatestDebate] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchLatestDebate = async () => {
@@ -15,11 +17,17 @@ function Home() {
         }
       } catch (error) {
         console.error(error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchLatestDebate();
   }, []);
+
+  if (loading) {
+    return <PageLoader />;
+  }
 
   return (
     <main className="min-h-screen bg-[#020b2d] text-white">

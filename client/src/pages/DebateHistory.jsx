@@ -5,11 +5,13 @@ import {
   getDebateHistory,
 } from "../api/debateApi";
 import { showError, showSuccess } from "../utils/toast";
+import PageLoader from "../components/PageLoader";
 
 function DebateHistory() {
   const [debates, setDebates] = useState([]);
   const [loadingSummary, setLoadingSummary] = useState(null);
   const [expandedSummary, setExpandedSummary] = useState({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -19,6 +21,8 @@ function DebateHistory() {
         setDebates(response.data);
       } catch (error) {
         console.error(error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -96,6 +100,10 @@ function DebateHistory() {
       showError(error.response?.data?.message || "Failed to delete debate");
     }
   };
+
+  if (loading) {
+    return <PageLoader />;
+  }
 
   return (
     <main className="min-h-screen bg-[#020b2d] text-white">

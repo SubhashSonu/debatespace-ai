@@ -1,19 +1,24 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getDebateHistory } from "../api/debateApi";
+import PageLoader from "../components/PageLoader";
 
 function Dashboard() {
   const navigate = useNavigate();
 
   const [debates, setDebates] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const response = await getDebateHistory();
+
         setDebates(response.data);
       } catch (error) {
         console.error(error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -29,7 +34,6 @@ function Dashboard() {
   const userLeftDebates = debates.filter(
     (debate) => debate.endReason === "user_left",
   ).length;
-
 
   const totalDebateSeconds = debates.reduce((total, debate) => {
     if (!debate.startedAt || !debate.endedAt) {
@@ -47,6 +51,10 @@ function Dashboard() {
       : `${(totalDebateSeconds / 3600).toFixed(1)}h`;
 
   const latestDebate = debates.length > 0 ? debates[0] : null;
+
+  if (loading) {
+    return <PageLoader />;
+  }
 
   return (
     <main className="min-h-screen bg-[#020b2d] text-white">

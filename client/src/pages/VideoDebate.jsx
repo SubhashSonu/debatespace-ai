@@ -295,9 +295,9 @@ function VideoDebate() {
 
     const roomUpdateHandler = (room) => {
       setRoomData(room);
-       if (room.startTime) {
-    startTimeRef.current = room.startTime;
-  }
+      if (room.startTime) {
+        startTimeRef.current = room.startTime;
+      }
     };
 
     const debateEndedHandler = (data) => {
@@ -305,13 +305,11 @@ function VideoDebate() {
 
       peerRef.current?.close();
 
-     if (startTimeRef.current) {
-  const elapsed = Math.floor(
-    (Date.now() - startTimeRef.current) / 1000
-  );
+      if (startTimeRef.current) {
+        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
 
-  setActualDuration(elapsed);
-}
+        setActualDuration(elapsed);
+      }
 
       setEndReason(data.reason);
 

@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { deleteDebate, getMyDebates } from "../api/debateApi";
 import { showError, showSuccess } from "../utils/toast";
+import PageLoader from "../components/PageLoader";
 
 function MyDebates() {
   const [debates, setDebates] = useState([]);
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDebates = async () => {
@@ -15,6 +17,8 @@ function MyDebates() {
         setDebates(response.data);
       } catch (error) {
         console.error(error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -49,10 +53,13 @@ function MyDebates() {
     }
   };
 
+  if (loading) {
+    return <PageLoader />;
+  }
+
   return (
     <main className="min-h-screen bg-[#020b2d] py-12 px-4 sm:px-6 lg:px-8 text-slate-100 font-sans selection:bg-cyan-500/30">
       <div className="mx-auto max-w-5xl">
-        
         {/* Header Section */}
         <div className="mb-12 text-center md:text-left rounded-3xl border border-slate-800 bg-slate-900/50 p-8 shadow-lg relative overflow-hidden">
           <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500"></div>
@@ -74,7 +81,8 @@ function MyDebates() {
               No debates created yet
             </h2>
             <p className="text-slate-400 max-w-sm">
-              You haven't set up any rooms. Create your first debate room to get started!
+              You haven't set up any rooms. Create your first debate room to get
+              started!
             </p>
           </div>
         ) : (
@@ -85,7 +93,6 @@ function MyDebates() {
                 className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 p-6 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-500/40 hover:shadow-[0_8px_30px_rgb(0,0,0,0.4)]"
               >
                 <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-                  
                   {/* Left Column: Info */}
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-3 mb-3">
@@ -98,8 +105,12 @@ function MyDebates() {
                               : "border-red-500/30 bg-red-500/10 text-red-400"
                         }`}
                       >
-                        {debate.status === "waiting" && <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-yellow-400 animate-pulse"></span>}
-                        {debate.status === "active" && <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse"></span>}
+                        {debate.status === "waiting" && (
+                          <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-yellow-400 animate-pulse"></span>
+                        )}
+                        {debate.status === "active" && (
+                          <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                        )}
                         {debate.status === "waiting"
                           ? "Waiting"
                           : debate.status === "active"
@@ -107,11 +118,14 @@ function MyDebates() {
                             : "Finished"}
                       </span>
                       <p className="text-xs font-medium text-slate-500">
-                        {new Date(debate.createdAt).toLocaleDateString(undefined, {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
+                        {new Date(debate.createdAt).toLocaleDateString(
+                          undefined,
+                          {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          },
+                        )}
                       </p>
                     </div>
 
@@ -120,15 +134,21 @@ function MyDebates() {
                     </h2>
 
                     <div className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5">
-                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Room ID</span>
-                      <span className="font-mono text-sm text-cyan-300 select-all">{debate.roomId}</span>
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                        Room ID
+                      </span>
+                      <span className="font-mono text-sm text-cyan-300 select-all">
+                        {debate.roomId}
+                      </span>
                     </div>
 
                     {debate.status === "ended" && (
                       <p className="mt-4 text-sm font-medium text-slate-400 bg-slate-800/50 inline-block px-3 py-1 rounded-md">
                         Ended By:{" "}
                         <span className="text-slate-300">
-                          {debate.endReason === "timer" ? "Timer Expired ⏱️" : "Participant Left 🚪"}
+                          {debate.endReason === "timer"
+                            ? "Timer Expired ⏱️"
+                            : "Participant Left 🚪"}
                         </span>
                       </p>
                     )}
@@ -139,10 +159,14 @@ function MyDebates() {
                     {debate.status !== "ended" ? (
                       <>
                         <button
-                          onClick={() => navigate(`/video-debate/${debate.roomId}`)}
+                          onClick={() =>
+                            navigate(`/video-debate/${debate.roomId}`)
+                          }
                           className="w-full sm:w-auto md:w-full rounded-xl bg-cyan-400 px-5 py-2.5 text-sm font-bold text-slate-950 transition-all hover:bg-cyan-300 active:scale-[0.98] shadow-[0_0_15px_rgba(34,211,238,0.15)] text-center"
                         >
-                          {debate.status === "active" ? "Rejoin Debate" : "Join Debate"}
+                          {debate.status === "active"
+                            ? "Rejoin Debate"
+                            : "Join Debate"}
                         </button>
 
                         <button
@@ -173,7 +197,6 @@ function MyDebates() {
                       </>
                     )}
                   </div>
-                  
                 </div>
               </div>
             ))}

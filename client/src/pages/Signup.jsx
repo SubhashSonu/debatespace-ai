@@ -66,7 +66,7 @@ function Signup() {
             </div>
             <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 shadow-sm flex items-center gap-3">
               <span className="text-cyan-400 text-lg">🔒</span>
-             Private debate rooms with shared notes
+              Private debate rooms with shared notes
             </div>
             <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 shadow-sm flex items-center gap-3">
               <span className="text-cyan-400 text-lg">🤖</span>

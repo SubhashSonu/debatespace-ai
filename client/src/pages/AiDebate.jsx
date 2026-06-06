@@ -11,6 +11,7 @@ import {
 import { getAuthUser } from "../api/auth";
 import { showError, showSuccess } from "../utils/toast";
 import { Trash2 } from "lucide-react";
+import PageLoader from "../components/PageLoader";
 
 function AiDebate() {
   const navigate = useNavigate();
@@ -246,6 +247,10 @@ function AiDebate() {
       showError("Failed to delete conversation");
     }
   };
+
+  if (loadingHistory && conversations.length === 0) {
+    return <PageLoader />;
+  }
 
   return (
     <main className="min-h-[calc(100svh-65px)] bg-[#020b2d] text-slate-100">
