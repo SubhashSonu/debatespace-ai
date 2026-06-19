@@ -1,4 +1,11 @@
 const DebateConversation = require("../models/DebateConversation");
+const {
+  getCache,
+  setCache,
+  deleteCache,
+  deleteCaches,
+  CACHE_TTL,
+} = require("../utils/cache");
 const { callGeminiDebateOpponent } = require("./aiController");
 
 const makeTitle = (topic) => topic.trim().slice(0, 60);
@@ -18,6 +25,8 @@ const createConversation = async (req, res) => {
     messages: [],
   });
 
+  await deleteCache(`ai-conversations:${req.user._id}`);
+
   res.status(201).json({
     success: true,
     conversation,
@@ -25,10 +34,30 @@ const createConversation = async (req, res) => {
 };
 
 const listConversations = async (req, res) => {
+  const cacheKey = `ai-conversations:${req.user._id}`;
+
+  const cachedData = await getCache(cacheKey);
+
+  if (cachedData) {
+    console.log("Ai Conversation List Cache Hit");
+    return res.json(cachedData);
+  }
+
+  console.log("AI Conversation List Cache Miss");
+
   const conversations = await DebateConversation.find({ user: req.user._id })
     .sort({ updatedAt: -1 })
     .select("title topic updatedAt createdAt messages")
     .lean();
+
+  await setCache(
+    cacheKey,
+    {
+      success: true,
+      conversations,
+    },
+    CACHE_TTL.AI_LIST,
+  );
 
   res.json({
     success: true,
@@ -37,6 +66,18 @@ const listConversations = async (req, res) => {
 };
 
 const getConversation = async (req, res) => {
+  const cacheKey = `ai-conversation:${req.params.conversationId}`;
+
+  const cachedData = await getCache(cacheKey);
+
+  if (cachedData) {
+    console.log("AI Conversation Cache Hit");
+
+    return res.json(cachedData);
+  }
+
+  console.log("AI Conversation Cache Miss");
+  
   const conversation = await DebateConversation.findOne({
     _id: req.params.conversationId,
     user: req.user._id,
@@ -46,6 +87,15 @@ const getConversation = async (req, res) => {
     res.status(404);
     throw new Error("Conversation not found");
   }
+
+  await setCache(
+    cacheKey,
+    {
+      success: true,
+      conversation,
+    },
+    CACHE_TTL.AI_CONVERSATION,
+  );
 
   res.json({
     success: true,
@@ -91,6 +141,11 @@ const sendMessage = async (req, res) => {
 
   await conversation.save();
 
+  await deleteCaches(
+    `ai-conversations:${req.user._id}`,
+    `ai-conversation:${conversation._id}`,
+  );
+
   res.json({
     success: true,
     conversationId: conversation._id,
@@ -100,17 +155,20 @@ const sendMessage = async (req, res) => {
 };
 
 const deleteConversation = async (req, res) => {
-
-  const conversation =
-    await DebateConversation.findOneAndDelete({
-      _id: req.params.conversationId,
-      user: req.user._id,
-    });
+  const conversation = await DebateConversation.findOneAndDelete({
+    _id: req.params.conversationId,
+    user: req.user._id,
+  });
 
   if (!conversation) {
     res.status(404);
     throw new Error("Conversation not found");
   }
+
+  await deleteCaches(
+    `ai-conversations:${req.user._id}`,
+    `ai-conversation:${req.params.conversationId}`,
+  );
 
   res.json({
     success: true,

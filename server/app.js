@@ -6,6 +6,7 @@ const aiRoutes = require("./routes/aiRoutes");
 const healthRoutes = require("./routes/healthRoutes");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 const debateRoutes = require("./routes/debateRoutes");
+const redis = require("./config/redis");
 
 const app = express();
 
@@ -29,6 +30,16 @@ app.get("/", (req, res) => {
     message: "DebateSpace AI API is running",
   });
 });
+app.get("/redis-test", async(req,res)=>{
+   await redis.set("test", "hello");
+
+  const value = await redis.get("test");
+
+  res.json({
+    value,
+  });
+})
+
 
 app.use(notFound);
 app.use(errorHandler);

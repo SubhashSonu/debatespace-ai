@@ -1,6 +1,13 @@
 const crypto = require("crypto");
 const Debate = require("../models/Debate");
 const { callGeminiSummary } = require("./aiController");
+const {
+  getCache,
+  setCache,
+  deleteCache,
+  deleteCaches,
+  CACHE_TTL,
+} = require("../utils/cache");
 
 const isAuthorizedUser = (debate, userId) => {
   const isCreator =
@@ -26,6 +33,11 @@ const createDebate = async (req, res) => {
       createdBy: req.user._id,
     });
 
+    await deleteCaches(
+      `debate-history:${req.user._id}`,
+      `my-debates:${req.user._id}`,
+    );
+
     return res.status(201).json({
       roomId: debate.roomId,
     });
@@ -42,6 +54,18 @@ const getDebate = async (req, res) => {
   try {
     const { roomId } = req.params;
 
+    const cacheKey = `debate:${roomId}`;
+
+    const cachedDebate = await getCache(cacheKey);
+
+    if (cachedDebate) {
+      console.log("Debate Cache Hit");
+
+      return res.status(200).json(cachedDebate);
+    }
+
+    console.log("DEBATE CACHE MISS");
+
     const debate = await Debate.findOne({
       roomId,
     });
@@ -51,6 +75,8 @@ const getDebate = async (req, res) => {
         message: "Debate not found",
       });
     }
+
+    await setCache(cacheKey, debate, CACHE_TTL.DEBATE);
 
     return res.status(200).json(debate);
   } catch (error) {
@@ -91,7 +117,11 @@ const endDebate = async (req, res) => {
     debate.endReason = endReason;
 
     await debate.save();
-
+    await deleteCaches(
+      `debate:${roomId}`,
+      `debate-history:${debate.createdBy}`,
+      `my-debates:${debate.createdBy}`,
+    );
     return res.status(200).json({
       message: "Debate ended successfully",
     });
@@ -124,6 +154,7 @@ const addParticipant = async (roomId, userId, username) => {
     });
 
     await debate.save();
+    await deleteCache(`debate:${roomId}`);
   }
 };
 
@@ -142,6 +173,7 @@ const startDebate = async (roomId) => {
     debate.status = "active";
 
     await debate.save();
+    await deleteCache(`debate:${roomId}`);
   }
 };
 
@@ -165,15 +197,35 @@ const endDebateByServer = async (roomId, reason) => {
   debate.endReason = reason;
 
   await debate.save();
+
+  await deleteCaches(
+    `debate:${roomId}`,
+    `debate-history:${debate.createdBy}`,
+    `my-debates:${debate.createdBy}`,
+  );
 };
 
 const getDebateHistory = async (req, res) => {
   try {
+    const cacheKey = `debate-history:${req.user._id}`;
+
+    const cachedData = await getCache(cacheKey);
+
+    if (cachedData) {
+      console.log("Cache HIT");
+
+      return res.status(200).json(cachedData);
+    }
+
+    console.log("Cache MISS");
+
     const debates = await Debate.find({
       "participants.userId": req.user._id,
     }).sort({
       createdAt: -1,
     });
+
+    await setCache(cacheKey, debates, CACHE_TTL.HISTORY);
 
     return res.status(200).json(debates);
   } catch (error) {
@@ -334,11 +386,24 @@ const deleteNote = async (req, res) => {
 
 const getMyDebates = async (req, res) => {
   try {
+    const cacheKey = `my-debates:${req.user._id}`;
+
+    const cachedData = await getCache(cacheKey);
+
+    if (cachedData) {
+      console.log("My debate Cache Hit");
+      return res.status(200).json(cachedData);
+    }
+
+    console.log("My debate Cache Miss");
+
     const debates = await Debate.find({
       createdBy: req.user._id,
     }).sort({
       createdAt: -1,
     });
+
+    await setCache(cacheKey, debates, CACHE_TTL.MY_DEBATES);
 
     return res.status(200).json(debates);
   } catch (error) {
@@ -353,6 +418,8 @@ const getMyDebates = async (req, res) => {
 const generateSummary = async (req, res) => {
   try {
     const { roomId } = req.params;
+
+    const cacheKey = `summary:${roomId}`;
 
     const debate = await Debate.findOne({ roomId });
 
@@ -374,7 +441,22 @@ const generateSummary = async (req, res) => {
       });
     }
 
+    const cachedSummary = await getCache(cacheKey);
+
+    if (cachedSummary) {
+      console.log("Summary Cache Hit");
+
+      return res.json({
+        success: true,
+        summary: cachedSummary,
+      });
+    }
+
+    console.log("Summary Cache Miss");
+
     if (debate.summary && debate.summary.trim() !== "") {
+      await setCache(cacheKey, debate.summary, CACHE_TTL.SUMMARY);
+
       return res.json({
         success: true,
         summary: debate.summary,
@@ -409,6 +491,8 @@ ${note.content}
 
     await debate.save();
 
+    await setCache(cacheKey, debate.summary, CACHE_TTL.SUMMARY);
+
     res.json({
       success: true,
       summary,
@@ -440,6 +524,12 @@ const deleteDebate = async (req, res) => {
   }
 
   await debate.deleteOne();
+  await deleteCaches(
+    `debate-history:${req.user._id}`,
+    `my-debates:${req.user._id}`,
+    `summary:${req.params.roomId}`,
+    `debate:${req.params.roomId}`,
+  );
 
   res.json({
     success: true,
