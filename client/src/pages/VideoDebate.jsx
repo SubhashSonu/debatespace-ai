@@ -19,6 +19,8 @@ function VideoDebate() {
   const localStreamRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const offerSentRef = useRef(false);
+  const pendingIceCandidatesRef = useRef([]);
+  const debateEndedRef = useRef(false);
 
   const [isMuted, setIsMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
@@ -72,6 +74,24 @@ function VideoDebate() {
       ],
     });
 
+    peerRef.current.oniceconnectionstatechange = () => {
+      // console.log("ICE STATE:", peerRef.current.iceConnectionState);
+
+      if (peerRef.current.iceConnectionState === "failed") {
+        console.error("ICE connection failed");
+
+        try {
+          peerRef.current.restartIce();
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    };
+
+    peerRef.current.onconnectionstatechange = () => {
+      // console.log("CONNECTION STATE:", peerRef.current.connectionState);
+    };
+
     peerRef.current.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit("webrtc:ice-candidate", {
@@ -82,6 +102,7 @@ function VideoDebate() {
     };
 
     peerRef.current.ontrack = (event) => {
+      // console.log("REMOTE TRACK RECEIVED");
       setIsRemoteConnected(true);
 
       if (remoteVideoRef.current) {
@@ -112,6 +133,7 @@ function VideoDebate() {
 
   const createOffer = async () => {
     try {
+      // console.log("CREATING OFFER");
       const offer = await peerRef.current.createOffer();
 
       await peerRef.current.setLocalDescription(offer);
@@ -127,9 +149,16 @@ function VideoDebate() {
 
   const createAnswer = async (offer) => {
     try {
+      // console.log("CREATING ANSWER");
       await peerRef.current.setRemoteDescription(
         new RTCSessionDescription(offer),
       );
+
+      for (const candidate of pendingIceCandidatesRef.current) {
+        await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+
+      pendingIceCandidatesRef.current = [];
 
       const answer = await peerRef.current.createAnswer();
 
@@ -146,9 +175,16 @@ function VideoDebate() {
 
   const handleAnswer = async (answer) => {
     try {
+      // console.log("RECEIVED ANSWER");
       await peerRef.current.setRemoteDescription(
         new RTCSessionDescription(answer),
       );
+
+      for (const candidate of pendingIceCandidatesRef.current) {
+        await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+
+      pendingIceCandidatesRef.current = [];
     } catch (error) {
       console.error(error);
     }
@@ -156,6 +192,16 @@ function VideoDebate() {
 
   const handleIceCandidate = async (candidate) => {
     try {
+      // console.log("RECEIVED ICE");
+
+      if (!peerRef.current?.remoteDescription) {
+        // console.log("Queueing ICE candidate");
+
+        pendingIceCandidatesRef.current.push(candidate);
+
+        return;
+      }
+
       await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (error) {
       console.error(error);
@@ -183,6 +229,9 @@ function VideoDebate() {
   };
 
   const leaveCall = async () => {
+    if (debateEndedRef.current) return;
+
+    debateEndedRef.current = true;
     try {
       await endDebate(roomId, "user_left");
 
@@ -199,6 +248,8 @@ function VideoDebate() {
     });
 
     peerRef.current?.close();
+
+    pendingIceCandidatesRef.current = [];
 
     offerSentRef.current = false;
 
@@ -266,7 +317,6 @@ function VideoDebate() {
       });
     };
 
-    init();
     const userJoinedHandler = async () => {
       if (offerSentRef.current) {
         return;
@@ -278,6 +328,7 @@ function VideoDebate() {
     };
 
     const handleOffer = async ({ offer }) => {
+      // console.log("RECEIVED OFFER");
       await createAnswer(offer);
     };
 
@@ -291,19 +342,38 @@ function VideoDebate() {
 
     const userLeftHandler = () => {
       setIsRemoteConnected(false);
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
+      }
     };
 
     const roomUpdateHandler = (room) => {
+      // console.log("ROOM UPDATE RECEIVED", room);
       setRoomData(room);
       if (room.startTime) {
         startTimeRef.current = room.startTime;
       }
     };
 
+    const roomFullHandler = () => {
+      showError("Room is already full");
+      navigate("/");
+    };
+
     const debateEndedHandler = (data) => {
+      debateEndedRef.current = true;
+
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
 
       peerRef.current?.close();
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
+
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
+      }
 
       if (startTimeRef.current) {
         const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
@@ -328,14 +398,22 @@ function VideoDebate() {
 
     socket.on("room:update", roomUpdateHandler);
 
+    socket.on("room:full", roomFullHandler);
+
     socket.on("debate:ended", debateEndedHandler);
+
+    init();
 
     return () => {
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
 
       peerRef.current?.close();
 
+      pendingIceCandidatesRef.current = [];
+
       offerSentRef.current = false;
+
+      debateEndedRef.current = false;
 
       socket.off("video:user-joined", userJoinedHandler);
       socket.off("webrtc:offer", handleOffer);
@@ -343,6 +421,7 @@ function VideoDebate() {
       socket.off("webrtc:ice-candidate", iceHandler);
       socket.off("video:user-left", userLeftHandler);
       socket.off("room:update", roomUpdateHandler);
+      socket.off("room:full", roomFullHandler);
       socket.off("debate:ended", debateEndedHandler);
     };
   }, [debate]);
@@ -351,7 +430,7 @@ function VideoDebate() {
     try {
       await endDebate(roomId, reason);
 
-      console.log("Debate ended in DB");
+      // console.log("Debate ended in DB");
     } catch (error) {
       console.error(error);
     }
@@ -368,6 +447,10 @@ function VideoDebate() {
       const remaining = Math.max(roomData.duration - elapsed, 0);
 
       if (remaining <= 0) {
+        if (debateEndedRef.current) return;
+
+        debateEndedRef.current = true;
+
         const elapsed = Math.floor((Date.now() - roomData.startTime) / 1000);
 
         setActualDuration(elapsed);
@@ -520,7 +603,7 @@ function VideoDebate() {
               <div className="flex flex-wrap gap-2.5">
                 {roomData?.users?.map((user) => (
                   <span
-                    key={user.socketId}
+                    key={user.userId || user.socketId}
                     className="inline-flex items-center rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-300"
                   >
                     {user.username}
